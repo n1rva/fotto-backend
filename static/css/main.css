@@ -1,0 +1,87 @@
+@font-face {
+    font-family: 'LibreBaskerville';
+    font-style: normal;
+    font-weight: normal;
+    src: local('LibreRegular'),
+        url('../static/fonts/Libre_Baskerville/LibreBaskerville-Regular.ttf') format("truetype");
+}
+
+@font-face {
+    font-family: 'LibreBaskerville';
+    font-style: normal;
+    font-weight: bold;
+    src: local('LibreBold'),
+        url('../static/fonts/Libre_Baskerville/LibreBaskerville-Bold.ttf') format("truetype");
+}
+
+@font-face {
+    font-family: 'LibreBaskerville';
+    font-style: italic;
+    font-weight: normal;
+    src: local('LibreItalic'),
+        url('../static/fonts/Libre_Baskerville/LibreBaskerville-Italic.ttf') format("truetype");
+}
+
+@font-face {
+    font-family: 'Merriweather';
+    font-style: normal;
+    font-weight: normal;
+    src: local('MerriweatherRegular'),
+        url('../static/fonts/Merriweather/Merriweather-Regular.ttf') format("truetype");
+}
+
+@font-face {
+    font-family: 'Merriweather';
+    font-style: normal;
+    font-weight: bold;
+    src: local('MerriweatherBold'),
+        url('../static/fonts/Merriweather/Merriweather-Bold.ttf') format("truetype");
+}
+
+@font-face {
+    font-family: 'Merriweather';
+    font-style: italic;
+    font-weight: normal;
+    src: local('MerriweatherItalic'),
+        url('../static/fonts/Merriweather/Merriweather-Italic.ttf') format("truetype");
+}
+
+@font-face {
+    font-family: 'AlegreyaSans';
+    font-style: normal;
+    font-weight: bold;
+    src: local('AlegreyaSans'),
+        url('../static/fonts/AlegreyaSans-Bold.ttf') format("truetype");
+}
+
+@font-face {
+    font-family: 'KaushanScript';
+    font-style: normal;
+    font-weight: normal;
+    src: local('KaushanScript'),
+        url('../static/fonts/KaushanScript-Regular.ttf') format("truetype");
+}
+
+@font-face {
+    font-family: 'Lobster';
+    font-style: normal;
+    font-weight: normal;
+    src: local('Lobster'),
+        url('../static/fonts/Lobster-Regular.ttf') format("truetype");
+}
+
+@font-face {
+    font-family: 'LucienSchoenschriftv';
+    font-style: normal;
+    font-weight: normal;
+    src: local('LucienSchoenschriftv'),
+        url('../static/fonts/LucienSchoenschriftv-Regular.ttf') format("truetype");
+}
+
+@font-face {
+    font-family: 'Nunito';
+    font-style: normal;
+    font-weight: bold;
+    src: local('Nunito'),
+        url('../static/fonts/Nunito-Bold.ttf') format("truetype");
+}
