@@ -24,12 +24,12 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenVerifyView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('account.urls')),
-    path('api/', include('webinar.urls')),
-    path('api/', include('certificate.urls')),
-    path('api/', include('video.urls')),
-    path('api/token/', TokenObtainPairView.as_view()),
-    path('api/token/verify/', TokenVerifyView.as_view()),
+    path('api/v1/', include('account.urls')),
+    path('api/v1/', include('webinar.urls')),
+    path('api/v1/', include('certificate.urls')),
+    path('api/v1/', include('video.urls')),
+    path('api/v1/token/', TokenObtainPairView.as_view()),
+    path('api/v1/token/verify/', TokenVerifyView.as_view()),
 ]
 
 if settings.DEBUG:  # new
