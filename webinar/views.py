@@ -1,5 +1,4 @@
-from tkinter.tix import Tree
-from django.shortcuts import render
+
 from django.utils import timezone
 from datetime import date
 
@@ -25,13 +24,14 @@ import ast
 @api_view(['POST'])
 @permission_classes([IsAdminUser]) 
 def create_webinar(request):
-    data = request.data.dict()
-    
-    newWebinar = Webinar.objects.create(**data)
+    data = request.data
+    data['participants'] = request.user.id
 
-    serializer = WebinarSerializer(newWebinar, many=False)
-
-    return Response({'success':True,'message': 'Webinar başarıyla oluşturuldu.', 'data': serializer.data})
+    serializer = WebinarSerializer(data=data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({'success':True,'message': 'Webinar başarıyla oluşturuldu.', 'data':serializer.data}, status=status.HTTP_201_CREATED)  
+    return Response({'error':serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['DELETE'])
 @permission_classes([IsAdminUser]) 

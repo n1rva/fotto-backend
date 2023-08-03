@@ -26,7 +26,11 @@ from django.core.exceptions import ObjectDoesNotExist
 @api_view(['POST']) 
 @permission_classes([IsAdminUser]) 
 def create_video(request):
-    serializer = VideoSerializer(data=request.data)
+
+    data = request.data
+    data['participants'] = request.user.id
+
+    serializer = VideoSerializer(data=data)
     if serializer.is_valid():
         serializer.save()
         return Response({'success':True,'message': 'Webinar kaydı başarıyla oluşturuldu.', 'video':serializer.data}, status=status.HTTP_201_CREATED)  
@@ -138,12 +142,12 @@ def get_video_participants(req,video_id):
 @permission_classes([IsAdminUser]) 
 def delete_video_from_user(req, video_id):
 
-    args= {'id': video_id ,'participants' : req.data['user_id'] }
+    args= {'id': video_id ,'participants' : req.data.get('user_id') }
 
     try:
         video = Video.objects.get(**args)
     except Video.DoesNotExist:
-        return Response({'error': 'Webinar kaydı kullanıcı için bulunamadı'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'success':False, 'message': 'Webinar kaydı kullanıcı için bulunamadı'}, status=status.HTTP_404_NOT_FOUND)
 
     video.participants.remove(req.user)
 

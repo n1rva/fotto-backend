@@ -20,6 +20,7 @@ from django.contrib.auth.models import User
 @api_view(['POST'])
 def signup(request):
     data = request.data
+    print(data)
 
     user = SignUpSerializer(data=data)
 
