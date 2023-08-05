@@ -8,11 +8,13 @@ from django.contrib.auth.hashers import make_password
 
 from .validators import validate_password
 
-from .serializers import SignUpSerializer, UserSerializer
+from .serializers import ChangePasswordSerializer, SignUpSerializer, UserSerializer
 
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 from django.contrib.auth.models import User
+
+from django.contrib.auth import update_session_auth_hash
 
 # Create your views here.
 
@@ -20,7 +22,6 @@ from django.contrib.auth.models import User
 @api_view(['POST'])
 def signup(request):
     data = request.data
-    print(data)
 
     user = SignUpSerializer(data=data)
 
@@ -70,17 +71,6 @@ def getUserById(request, pk):
 
     return Response({'success':True, 'user':serializer.data})
 
-##SİL
-@api_view(['GET'])
-@permission_classes([IsAdminUser]) 
-def getAllUsers(request):
-    users = User.objects.all().order_by('first_name')
-
-    serializer = UserSerializer(users, many=True)
-
-    return Response({'success':True, 'users':serializer.data})
-##SİL
-
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def update_profile(request):
@@ -129,19 +119,6 @@ def update_password(request):
     return Response({'success': False, 'message': 'Yeni şifre ya da geçerli şifre sağlanmadı.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-
-# @api_view(['GET'])
-# @permission_classes([IsAdminUser]) 
-# def search_users(request):
-#     query = request.GET.get('query')
-
-#     if query:
-#         users = User.objects.filter(user__first_name__icontains=query) | User.objects.filter(user__last_name__icontains=query)
-#     else:
-#         users = User.objects.all()
-
-#     return render(request, 'search_users.html', {'users': users})
-
 @api_view(['GET'])
 @permission_classes([IsAdminUser])  
 def userSearch(request):
@@ -156,3 +133,18 @@ def userSearch(request):
         
     serializer = UserSerializer(users, many=True)  
     return Response({'success':True, 'message':'Kullanıcılar bulundu.', 'users':serializer.data})
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    if request.method == 'POST':
+        serializer = ChangePasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            user = request.user
+            if user.check_password(serializer.data.get('old_password')):
+                user.set_password(serializer.data.get('new_password'))
+                user.save()
+                update_session_auth_hash(request, user)  # To update session after password change
+                return Response({'message': 'Password changed successfully.'}, status=status.HTTP_200_OK)
+            return Response({'error': 'Incorrect old password.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -30,6 +30,7 @@ urlpatterns = [
     path('api/v1/', include('video.urls')),
     path('api/v1/token/', TokenObtainPairView.as_view()),
     path('api/v1/token/verify/', TokenVerifyView.as_view()),
+    path('api/v1/password_reset/', include('django_rest_passwordreset.urls', namespace='password_reset')),
 ]
 
 if settings.DEBUG:  # new

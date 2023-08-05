@@ -14,5 +14,5 @@ class Video(models.Model):
     participants = models.ManyToManyField(User, blank=True)
 
 class VideoFile(models.Model):
-    video = models.ForeignKey(Video, on_delete=models.CASCADE)
+    video = models.OneToOneField(Video, on_delete=models.CASCADE)
     file = models.FileField(upload_to='videos/records/')
