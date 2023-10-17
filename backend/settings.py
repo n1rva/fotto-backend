@@ -27,7 +27,7 @@ dotenv.read_dotenv()
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['fizyottolive.com', 'www.fizyottolive.com', 'localhost', '127.0.0.1']
 
@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'webinar.apps.WebinarConfig',
     'certificate.apps.CertificateConfig',
     'video.apps.VideoConfig',
+    'payment.apps.PaymentConfig',
 ]
 
 MIDDLEWARE = [

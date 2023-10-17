@@ -142,12 +142,12 @@ def single_certificate_views(request):
     
 @api_view(['DELETE', 'POST'])
 @permission_classes([IsAdminUser]) 
-def handle_certificate_by_id(request):
+def handle_certificate_by_id(request, id):
 
     if request.method == 'DELETE':
-        return deleteCertificate(request)
+        return deleteCertificate(request,id)
     if request.method == 'POST':
-        return updateCertificate(request)
+        return updateCertificate(request,id)
     
 
 
@@ -237,7 +237,7 @@ def create_certificate_for_participants(request):
         certificateFile = createCertficate(name, font_size, color, y_axis, max_text_width, max_font_size, font, sourcePDF, unique_id, id_x_axis, id_y_axis, id_font_size, id_font, id_color, qr_x, qr_y, qr_size, qr_bg, qr_fg)
 
         
-        certificate = Certificate.objects.create(user=participant, webinar=webinar )
+        certificate = Certificate.objects.create(user=participant, webinar=webinar, unique_id=unique_id )
         certificate.certificate_file.save(f'{webinar_id}__{participant.first_name}_{participant.last_name}.pdf', ContentFile(certificateFile.read()))
         certificate.save()
 
