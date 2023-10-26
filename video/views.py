@@ -99,6 +99,33 @@ def get_video(request,video_id):
    
    except Video.DoesNotExist:
         return Response({'error':'Webinar kaydı bulunamadı.'},status=status.HTTP_404_NOT_FOUND)
+   
+@api_view(['GET'])
+def get_video_by_slug(request,video_slug):
+   try:
+        video = Video.objects.get(slug=video_slug)  
+        serializer = VideoSerializer(video)
+
+        try:
+            video_file = video.videofile
+            video_file_serializer = VideoFileSerializer(video_file)
+            response_data = {
+                'success': True,
+                'video': serializer.data,
+                'video_file': video_file_serializer.data
+            }
+        except VideoFile.DoesNotExist:
+            response_data = {
+                'success': True,
+                'video': serializer.data,
+                'video_file': None
+            }
+
+        return Response(response_data,status=status.HTTP_200_OK)     
+
+   
+   except Video.DoesNotExist:
+        return Response({'error':'Webinar kaydı bulunamadı.'},status=status.HTTP_404_NOT_FOUND)
 
 
 @api_view(['GET'])
@@ -170,6 +197,21 @@ def get_video_participants(req,video_id):
     except Video.DoesNotExist:
         return Response({'success':False,'message': 'Webinar kaydı bulunamadı.'}, status=status.HTTP_404_NOT_FOUND)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_if_user_has_video(req, video_id):
+    try:
+        user = req.user
+
+        video = Video.objects.get(id=video_id)
+
+        if user in video.participants.all():
+            return Response({'success':True,'has_video': True}, status=status.HTTP_200_OK)
+        else:
+            return Response({'success':True,'has_video': False}, status=status.HTTP_200_OK)
+
+    except Video.DoesNotExist:
+        return Response({'error': 'Belirtilen video bulunamadı.'}, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['DELETE'])
 @permission_classes([IsAdminUser]) 
@@ -268,9 +310,10 @@ class RangeFileWrapper(object):
             return data
 
 
-def stream_video(request, video_file_id):
-    video = get_object_or_404(VideoFile, id=video_file_id)
-    path = video.file.path
+def stream_video(request, video_slug):
+    video= get_object_or_404(Video, slug=video_slug)
+    video_file = get_object_or_404(VideoFile, video=video)
+    path = video_file.file.path
 
     range_header = request.META.get('HTTP_RANGE', '').strip()
     range_match = range_re.match(range_header)

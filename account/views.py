@@ -16,6 +16,9 @@ from django.contrib.auth.models import User
 
 from django.contrib.auth import update_session_auth_hash
 
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+
 # Create your views here.
 
 
@@ -34,6 +37,19 @@ def signup(request):
                 email=data['email'],
                 password=make_password(data['password'])
             )
+
+            subject = "Fizyotto Live'e hoşgeldiniz!"
+            from_email = 'destek@fizyottolive.com'
+            recipient_list = [data['email']]
+
+            email_template = 'email/welcome_email.html'
+            text_content= 'email/welcome_email.txt'
+
+            email_content_txt = render_to_string(text_content)
+            email_content_html = render_to_string(email_template)
+
+            send_mail(subject, email_content_txt, from_email, recipient_list, html_message=email_content_html)
+
             return Response({
                 'success':True,
                 'message': 'Kayıt başarılı.'},

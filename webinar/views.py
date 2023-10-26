@@ -75,6 +75,17 @@ def get_webinar(request, webinar_id):
     return Response({'success':True,'webinar': serializer.data})
 
 @api_view(['GET'])
+def get_webinar_by_slug(request, webinar_slug):
+    try:
+        webinar = Webinar.objects.get(slug=webinar_slug)
+    except Webinar.DoesNotExist:
+        return Response({'error': 'Webinar bulunamadı.'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = WebinarSerializer(webinar, many=False)
+
+    return Response({'success':True,'webinar': serializer.data})
+
+@api_view(['GET'])
 def get_user_webinars(request):
 
   user_id = request.query_params.get('id')
@@ -147,3 +158,23 @@ def delete_webinar_from_user(req, webinar_id):
 
     webinar.participants.remove(req.user)
     return Response({'success':True,'message': 'Webinar kullanıcıdan başarıyla silindi.'},status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_if_user_has_webinar(req, webinar_id):
+    try:
+        # Kullanıcının kimliğini bulun, bu örnekte auth.User modeli kullanılıyor
+        user = req.user
+        print(user)
+
+        # Webinar'ı belirtilen kimlikle bulun
+        webinar = Webinar.objects.get(id=webinar_id)
+
+        # Kullanıcının bu web seminerine katılıp katılmadığını kontrol edin
+        if user in webinar.participants.all():
+            return Response({'success':True,'has_webinar': True}, status=status.HTTP_200_OK)
+        else:
+            return Response({'success':True,'has_webinar': False}, status=status.HTTP_200_OK)
+
+    except Webinar.DoesNotExist:
+        return Response({'error': 'Belirtilen webinar bulunamadı.'}, status=status.HTTP_404_NOT_FOUND)

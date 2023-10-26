@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+from django.utils.text import slugify
 # Create your models here.
 
 
@@ -15,3 +16,10 @@ class Webinar(models.Model):
     instructor_image = models.ImageField(upload_to='webinars/instructor/', null=True, blank=True)
     participants = models.ManyToManyField(User, blank=True)
     certificates_added = models.BooleanField(default=False)
+    wp_group_url = models.URLField(max_length=400)
+    slug = models.SlugField(unique=True, blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.title)
+        super(Webinar, self).save(*args, **kwargs)

@@ -21,6 +21,9 @@ from video.models import Video
 
 from .serializers import PaymentSerializer
 
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+
 @api_view(['POST'])
 def payment_first_step(req):
 
@@ -59,7 +62,6 @@ def payment_first_step(req):
     no_installment = '1'
     max_installment = '0'
 
-
     email= user.email
     name=user.first_name + user.last_name
 
@@ -90,6 +92,8 @@ def payment_first_step(req):
     result = requests.post('https://www.paytr.com/odeme/api/get-token', params)
     res = json.loads(result.text)
 
+    print(res)
+
 
     if res['status'] == 'success':
 
@@ -111,7 +115,7 @@ def payment_last_step(request):
 
     merchant_key=  bytes(os.environ.get('MERCHANT_KEY'), 'utf-8')
 
-    merchant_salt= bytes(os.environ.get('MERCHANT_SALT'), 'utf-8')
+    merchant_salt= os.environ.get('MERCHANT_SALT')
 
     # Bu kısımda herhangi bir değişiklik yapmanıza gerek yoktur.
     # POST değerleri ile hash oluştur.
@@ -121,7 +125,7 @@ def payment_last_step(request):
     # Oluşturulan hash'i, paytr'dan gelen post içindeki hash ile karşılaştır
     # (isteğin paytr'dan geldiğine ve değişmediğine emin olmak için)
     # Bu işlemi yapmazsanız maddi zarara uğramanız olasıdır.
-    if hash != post['hash']:
+    if hash != bytes(post['hash'], 'utf-8'):
         return HttpResponse(str('PAYTR notification failed: bad hash'))
 
     # BURADA YAPILMASI GEREKENLER
@@ -152,6 +156,19 @@ def payment_last_step(request):
             order.status=1
             order.save()
 
+            subject = "Ödemeniz onaylandı!"
+            from_email = 'destek@fizyottolive.com'
+            recipient_list = [post['email']]
+
+            email_template = 'email/payment_successful.html'
+            text_content= 'email/payment_successful.txt'
+
+            email_content_txt = render_to_string(text_content)
+            email_content_html = render_to_string(email_template)
+
+            send_mail(subject, email_content_txt, from_email, recipient_list, html_message=email_content_html)
+
+
             return Response(str('OK'))      
           
         if order.product_type=='video':
@@ -161,6 +178,19 @@ def payment_last_step(request):
             video.participants.add(user.id)
             order.status=1
             order.save()
+
+            subject = "Ödemeniz onaylandı!"
+            from_email = 'destek@fizyottolive.com'
+            recipient_list = [post['email']]
+
+            email_template = 'email/payment_successful.html'
+            text_content= 'email/payment_successful.txt'
+
+            email_content_txt = render_to_string(text_content)
+            email_content_html = render_to_string(email_template)
+
+            send_mail(subject, email_content_txt, from_email, recipient_list, html_message=email_content_html)
+
 
 
             return Response(str('OK'))
