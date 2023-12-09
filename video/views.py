@@ -14,10 +14,11 @@ from rest_framework import status
 from rest_framework.permissions import IsAdminUser,IsAuthenticated
 
 from account.serializers import UserSerializer
+from .pagination import CustomPagination
 
-from .serializers import VideoFileSerializer, VideoSerializer
+from .serializers import VideoFileSerializer, VideoSerializer, VideoTagSerializer
 
-from .models import Video, VideoFile
+from .models import Video, VideoFile, VideoTags
 
 from django.utils.http import http_date
 
@@ -30,14 +31,26 @@ from ranged_response import RangedFileResponse
 @api_view(['POST']) 
 @permission_classes([IsAdminUser]) 
 def create_video(request):
-
     data = request.data
     data['participants'] = request.user.id
 
+    tag_names = request.data.getlist('tags[]')
+    
+    tags = []
+    for name in tag_names:
+        capitalized_name = name.capitalize()
+        tag, created = VideoTags.objects.get_or_create(name=capitalized_name)
+        tags.append(tag)
+
     serializer = VideoSerializer(data=data)
+
     if serializer.is_valid():
-        serializer.save()
+        video = serializer.save()
+
+        video.tags.set(tags)
+
         return Response({'success':True,'message': 'Webinar kaydı başarıyla oluşturuldu.', 'video':serializer.data}, status=status.HTTP_201_CREATED)  
+
     return Response({'error':serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -49,11 +62,22 @@ def update_video(request, video_id):
         video = Video.objects.get(id=video_id)
     except Video.DoesNotExist:
         return Response({'error': 'Video bulunamadı.'}, status=status.HTTP_404_NOT_FOUND)
-        
+
+    tag_names = request.data.getlist('tags[]')
+    
+    tags = []
+    for name in tag_names:
+        capitalized_name = name.capitalize()
+        tag, created = VideoTags.objects.get_or_create(name=capitalized_name)
+        tags.append(tag)
+
     serializer = VideoSerializer(video, data=request.data, partial=True)  
    
     if serializer.is_valid():
         serializer.save()
+
+        video.tags.set(tags)
+
         return Response({'success':True,'message': 'Webinar kaydı başarıyla güncellendi.', 'video':serializer.data},status=status.HTTP_200_OK)
 
     return Response({'error':serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -129,12 +153,27 @@ def get_video_by_slug(request,video_slug):
 
 
 @api_view(['GET'])
-def get_videos(req):
-   all_videos = Video.objects.all()
+@permission_classes([IsAdminUser])
+def search_video(req, search_query):
+    videos = Video.objects.filter(title__icontains=search_query)
 
-   serializer = VideoSerializer(all_videos, many=True) 
-   
-   return Response({'success':True,'videos':serializer.data},status=status.HTTP_200_OK)
+    serializer = VideoSerializer(videos, many=True)
+    
+    return Response({'success':True,'videos': serializer.data})
+
+
+@api_view(['GET'])
+def get_videos(req):
+    all_videos = Video.objects.all().order_by('-id')
+
+    paginator= CustomPagination()
+
+    results_page = paginator.paginate_queryset(all_videos, req)
+
+    serializer = VideoSerializer(results_page, many=True)
+
+    return paginator.get_paginated_response(serializer.data)
+
 
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
@@ -143,16 +182,16 @@ def get_user_videos(request):
   user_id = request.query_params.get('user_id')
 
   if not user_id:
-    return Response({"error": "User ID parameter is required"}, status=400)
+    return Response({"error": "User ID gerekli."}, status=400)
   
   try:
     videos = Video.objects.filter(participants=user_id)
     
     if not videos:
-      return Response({"error": "Kullanıcı için webinar kaydı bulunamadı."}, status=404)
+      return Response({'success':True,'videos': []}, status=status.HTTP_200_OK)
 
     serializer = VideoSerializer(videos, many=True)
-    return Response({'success':True, 'videos':serializer.data}, status=200)
+    return Response({'success':True, 'videos':serializer.data}, status=status.HTTP_200_OK)
 
   except ObjectDoesNotExist:
     return Response({"error": "Kullanıcı bulunamadı."}, status=404)
@@ -212,6 +251,36 @@ def check_if_user_has_video(req, video_id):
 
     except Video.DoesNotExist:
         return Response({'error': 'Belirtilen video bulunamadı.'}, status=status.HTTP_404_NOT_FOUND)
+    
+@api_view(['GET'])
+def get_all_video_filters(req):
+    tags = VideoTags.objects.all()
+    serializer = VideoTagSerializer(tags, many=True)
+    return Response({'tags': serializer.data})
+
+@api_view(['GET'])
+def search_filters(req, search_query):
+    tags = VideoTags.objects.filter(name__icontains=search_query)
+    serializer = VideoTagSerializer(tags, many=True)
+    return Response({'tags': serializer.data})
+
+@api_view(['GET'])
+def videos_by_tags(request,tag_names):
+
+    tag_names = tag_names.split(',')
+
+    tags = VideoTags.objects.filter(name__in=tag_names)
+
+    videos = Video.objects.filter(tags__in=tags)
+
+    videos = videos.distinct()
+
+    paginator= CustomPagination()
+    results_page = paginator.paginate_queryset(videos, request)
+
+    serializer = VideoSerializer(results_page, many=True)
+
+    return paginator.get_paginated_response(serializer.data)
 
 @api_view(['DELETE'])
 @permission_classes([IsAdminUser]) 
@@ -262,20 +331,6 @@ def delete_video_file(request, video_file_id):
     video_file.delete()
 
     return Response({'success': True, 'message': 'Webinar kaydı başarıyla silindi.'})
-
-# @api_view(['GET'])  
-# def stream_video(request, video_file_id):
-#     video = get_object_or_404(VideoFile, id=video_file_id)
-#     file_path = video.file.path
-
-#     if not os.path.isfile(file_path):
-#         return HttpResponseNotFound()
-#     response = RangedFileResponse(
-#         request, open(file_path, 'rb'),
-#         content_type=mimetypes.guess_type(file_path)[0]
-#     )
-#     response['Content-Length'] = os.path.getsize(file_path)
-#     return response
 
 range_re = re.compile(r'bytes\s*=\s*(\d+)\s*-\s*(\d*)', re.I)
 

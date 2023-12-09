@@ -5,6 +5,7 @@ from cairo import FontWeight
 from django.shortcuts import render
 
 from pathlib import Path
+from video.models import Video
 
 from webinar.serializers import WebinarSerializer
 
@@ -102,7 +103,7 @@ def createCertficate(name, font_size, color, y_axis, max_text_width, max_font_si
     p.drawOn(pdf, (id_x_axis+1)*inch, id_y_axis*inch)
 
 
-    qr_draw(pdf, f'https://localhost:3000/certificates/{unique_id}', x=qr_x* inch, y=qr_y *inch , size=qr_size*inch, bg=qr_bg, fg=qr_fg )
+    qr_draw(pdf, f'https://fizyottolive.com/certificates/{unique_id}', x=qr_x* inch, y=qr_y *inch , size=qr_size*inch, bg=qr_bg, fg=qr_fg )
     
     pdf.save()
 
@@ -123,10 +124,10 @@ def createCertficate(name, font_size, color, y_axis, max_text_width, max_font_si
 
 def create_unique_id():
 
-    unique_id = str(uuid.uuid4())[:10]  
+    unique_id = str(uuid.uuid4())[:11].replace("-","")
 
     while Certificate.objects.filter(unique_id=unique_id).exists():
-        unique_id = str(uuid.uuid4())[:10]
+        unique_id = str(uuid.uuid4())[:11].replace("-","")
 
     return unique_id
 
@@ -162,7 +163,7 @@ def preview_certificate(request):
     color = data['color']
     max_text_width= float(data['max_text_width'])
     max_font_size= int(data['max_font_size']) 
-    webinar_id = int(data['webinar_id'])
+    source_id = int(data['source_id'])
     y_axis = float(data['y_axis'])
 
     id_x_axis = float(data['id_x_axis'])
@@ -177,17 +178,24 @@ def preview_certificate(request):
     qr_bg = data['qr_bg']
     qr_fg = data['qr_fg']
 
+    certificate_type = data['certificate_type']
+
     if 'fontFile' in request.FILES:
         font = request.FILES['fontFile']
     else:
         font= data['font']
 
-    sourceWebinar = Webinar.objects.get(id=webinar_id) #sadece certificate için filter
-    sourcePDF= sourceWebinar.source_certificate
+    if certificate_type=='webinar':
+        source = Webinar.objects.get(id=source_id)
+        pdf= source.source_certificate
+
+    elif certificate_type=='video':
+        source = Video.objects.get(id=source_id)
+        pdf= source.source_certificate
 
     unique_id=create_unique_id()
 
-    packet= createCertficate(name, font_size, color, y_axis, max_text_width, max_font_size, font, sourcePDF, unique_id, id_x_axis, id_y_axis, id_font_size, id_font, id_color, qr_x, qr_y, qr_size, qr_bg, qr_fg)
+    packet= createCertficate(name, font_size, color, y_axis, max_text_width, max_font_size, font, pdf, unique_id, id_x_axis, id_y_axis, id_font_size, id_font, id_color, qr_x, qr_y, qr_size, qr_bg, qr_fg)
 
     response = HttpResponse(packet, content_type='application/pdf') # ---> Reponse??
     response['Content-Disposition'] = f'attachment; filename="{get_random_string(length=6)}.pdf"'
@@ -196,7 +204,7 @@ def preview_certificate(request):
 
 @api_view(['POST'])
 @permission_classes([IsAdminUser]) 
-def create_certificate_for_participants(request):
+def create_certificate_for_webinar_participants(request):
     data = request.data
 
     webinar_id = data['webinar_id']
@@ -244,6 +252,57 @@ def create_certificate_for_participants(request):
 
     return Response({'success':True, 'message':'Sertifikalar katılımcılar için başarıyla oluşturuldu.'})
 
+@api_view(['POST'])
+@permission_classes([IsAdminUser]) 
+def create_certificate_for_video_participants(request):
+    data = request.data
+
+    video_id = data['video_id']
+    video = Video.objects.get(id=video_id)
+
+    sourcePDF= video.source_certificate
+
+    for participant in video.participants.all():
+
+        name = f"{participant.first_name} {participant.last_name}" 
+
+        font_size= int(data['font_size'])
+        color = data['color']
+        max_text_width= float(data['max_text_width'])
+        max_font_size= int(data['max_font_size']) 
+        video_id = int(data['video_id'])
+        y_axis = float(data['y_axis'])
+
+        id_x_axis = float(data['id_x_axis'])
+        id_y_axis = float(data['id_y_axis'])
+        id_font_size = int(data['id_font_size'])
+        id_font = data['id_font']
+        id_color = data['id_color']    
+        
+        qr_x = float(data['qr_x'])
+        qr_y = float(data['qr_y'])
+        qr_size = float(data['qr_size'])
+        qr_bg = data['qr_bg']
+        qr_fg = data['qr_fg']
+
+        if 'fontFile' in request.FILES:
+            font = request.FILES['fontFile']
+        else:
+            font= data['font']
+
+        unique_id=create_unique_id()
+
+        certificateFile = createCertficate(name, font_size, color, y_axis, max_text_width, max_font_size, font, sourcePDF, unique_id, id_x_axis, id_y_axis, id_font_size, id_font, id_color, qr_x, qr_y, qr_size, qr_bg, qr_fg)
+
+        
+        certificate = Certificate.objects.create(user=participant, video=video, unique_id=unique_id )
+        certificate.certificate_file.save(f'{video_id}__{participant.first_name}_{participant.last_name}.pdf', ContentFile(certificateFile.read()))
+        certificate.save()
+
+
+    return Response({'success':True, 'message':'Sertifikalar katılımcılar için başarıyla oluşturuldu.'})
+
+
 
 def create_certificate_for_user(request):
 
@@ -254,7 +313,7 @@ def create_certificate_for_user(request):
     color = data['color']
     max_text_width= float(data['max_text_width'])
     max_font_size= int(data['max_font_size']) 
-    webinar_id = int(data['webinar_id'])
+    source_id = int(data['source_id'])
     y_axis = float(data['y_axis'])
 
     id_x_axis = float(data['id_x_axis'])
@@ -269,13 +328,20 @@ def create_certificate_for_user(request):
     qr_bg = data['qr_bg']
     qr_fg = data['qr_fg']
 
+    certificate_type = data['certificate_type']
+
     if 'fontFile' in request.FILES:
         font = request.FILES['fontFile']
     else:
         font= data['font']
 
-    sourceWebinar = Webinar.objects.get(id=webinar_id)
-    sourcePDF= sourceWebinar.source_certificate
+    if certificate_type=='webinar':
+        source = Webinar.objects.get(id=source_id)
+        pdf= source.source_certificate
+
+    if certificate_type=='video':
+        source = Video.objects.get(id=source_id)
+        pdf= source.source_certificate
 
     user = User.objects.get(id=userID)
 
@@ -283,25 +349,18 @@ def create_certificate_for_user(request):
 
     unique_id=create_unique_id()
 
-    certificateFile= createCertficate(name, font_size, color, y_axis, max_text_width, max_font_size, font, sourcePDF, unique_id, id_x_axis, id_y_axis, id_font_size, id_font, id_color, qr_x, qr_y, qr_size, qr_bg, qr_fg)
+    certificateFile= createCertficate(name, font_size, color, y_axis, max_text_width, max_font_size, font, pdf, unique_id, id_x_axis, id_y_axis, id_font_size, id_font, id_color, qr_x, qr_y, qr_size, qr_bg, qr_fg)
 
-    certificate = Certificate.objects.create(user=user, webinar=sourceWebinar )
+    if certificate_type=='webinar':
 
-    certificate.certificate_file.save(f'{webinar_id}__{user.first_name}_{user.last_name}.pdf', ContentFile(certificateFile.read()))
-    certificate.save()
+        certificate = Certificate.objects.create(user=user, webinar=source )
 
-    
-    # for user in User.objects.all():
-    #     name=user.first_name + " " + user.last_name
+    if certificate_type=='video':
+        certificate = Certificate.objects.create(user=user, video=source )
         
-    #     certificateFile = createCertficate(name, fontSize, color, maxTextWidth, maxFontSize, fontFile, sourcePDF)
 
-    #     Certificate.objects.create(user=user, webinar=Webinar.objects.filter(id=7)[0], certificate_file=certificateFile )
-
-    # pocket= createCertficate(name, fontSize, color, maxTextWidth, maxFontSize, fontFile, sourcePDF)
-
-    # response = HttpResponse(pocket.getvalue(), content_type='application/pdf') # ---> Reponse??
-    # response['Content-Disposition'] = f'attachment; filename="{get_random_string(length=6)}.pdf"'
+    certificate.certificate_file.save(f'{source_id}__{user.first_name}_{user.last_name}.pdf', ContentFile(certificateFile.read()))
+    certificate.save()
 
     return Response({'success':True, 'message':'Sertifika başarıyla oluşturuldu.'})
 
@@ -337,28 +396,36 @@ def getCertificate(request, pk):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def get_current_user_certificates(request):
+def get_current_user_webinar_certificates(request):
     user_id = request.user.id
 
-    certificates = Certificate.objects.filter(user_id=user_id)
 
-    filtered_certificates = certificates.exclude(webinar__certificates_added=False)
+    webinar_certificates = Certificate.objects.filter(user_id=user_id, webinar__isnull=False)
 
-    serializer = CertificateSerializer(filtered_certificates, many=True)
-    return Response({'success': True, 'certificates': serializer.data})
+    filtered_webinar_certificates = webinar_certificates.exclude(webinar__certificates_added=False)
 
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
-# def get_current_user_certificates(request):
+    webinar_serializer = CertificateSerializer(filtered_webinar_certificates, many=True)
 
-#     args = { 'user': request.user.id }
+    return Response({
+        'success': True,
+        'certificates': webinar_serializer.data
+    })
 
-#     certificates = Certificate.objects.filter(**args)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_current_user_video_certificates(request):
+    user_id = request.user.id
 
-#     serializer = CertificateSerializer(certificates, many=True)
+    video_certificates = Certificate.objects.filter(user_id=user_id, video__isnull=False)
 
-#     return Response({'success':True,'certificates': serializer.data})
+    filtered_video_certificates = video_certificates.exclude(video__certificates_added=False)
 
+    video_serializer = CertificateSerializer(filtered_video_certificates, many=True)
+
+    return Response({
+        'success': True,
+        'certificates': video_serializer.data,
+    })
 
 def get_user_certificate_info(request):
 

@@ -3,6 +3,10 @@ from . import views
 
 urlpatterns = [
     path('video/', views.get_videos, name='get_all_webinar_records'),
+    path('video/search/<str:search_query>', views.search_video, name='search_video'),
+    path('video/filters', views.get_all_video_filters, name='get_all_video_filters'),
+    path('video/filters/<str:tag_names>', views.videos_by_tags, name='videos_by_tag'),
+    path('video/filters/search/<str:search_query>/', views.search_filters, name='search_tags'),
     path('video/create', views.create_video, name='create_webinar_record'),
     path('video/<int:video_id>', views.get_video, name='get_webinar_record'),
     path('video/<slug:video_slug>/slug', views.get_video_by_slug, name='get_video_by_slug'),

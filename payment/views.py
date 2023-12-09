@@ -1,5 +1,7 @@
 from multiprocessing import process
 import os
+from time import timezone
+from urllib import request
 from django.http import HttpResponse
 from django.shortcuts import render
 
@@ -15,14 +17,21 @@ import uuid
 
 from datetime import datetime
 
-from .models import Payment
+from account.serializers import UserSerializer
+from django.contrib.auth.models import User
+
+from .paginations import CustomPagination
+
+from .models import Payment, PaymentNotification
 from webinar.models import Webinar
 from video.models import Video
 
-from .serializers import PaymentSerializer
+from .serializers import PaymentNotificationSerializer, PaymentSerializer
 
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+
+from rest_framework.permissions import IsAuthenticated,IsAdminUser
 
 @api_view(['POST'])
 def payment_first_step(req):
@@ -92,9 +101,6 @@ def payment_first_step(req):
     result = requests.post('https://www.paytr.com/odeme/api/get-token', params)
     res = json.loads(result.text)
 
-    print(res)
-
-
     if res['status'] == 'success':
 
         serializer = PaymentSerializer(data=order_data)
@@ -156,6 +162,19 @@ def payment_last_step(request):
             order.status=1
             order.save()
 
+            now=datetime.now()
+
+            notification_data={
+                'product_type':'webinar',
+                'title':webinar.title,
+                'price':webinar.price,
+                'date':now,
+                'user':user
+            }
+
+            PaymentNotification.objects.create(**notification_data)
+
+
             subject = "Ödemeniz onaylandı!"
             from_email = 'destek@fizyottolive.com'
             recipient_list = [post['email']]
@@ -178,6 +197,18 @@ def payment_last_step(request):
             video.participants.add(user.id)
             order.status=1
             order.save()
+
+            now=datetime.now()
+
+            notification_data={
+                'product_type':'video',
+                'title':video.title,
+                'price':video.price,
+                'date':now,
+                'user':user
+            }
+
+            PaymentNotification.objects.create(**notification_data)
 
             subject = "Ödemeniz onaylandı!"
             from_email = 'destek@fizyottolive.com'
@@ -223,3 +254,73 @@ def payment_last_step(request):
 
     # Bildirimin alındığını PayTR sistemine bildir.
     return HttpResponse(str('OK'))
+
+@api_view(['PUT'])
+@permission_classes([IsAdminUser]) 
+def update_notification(request, notification_id):
+
+    data=request.data
+    
+    notification= PaymentNotification.objects.get(id=notification_id)
+
+    serializer= PaymentNotificationSerializer(notification,data=data, partial=True)
+
+    if serializer.is_valid():
+        serializer.save()
+
+        return Response({'success':True, 'msg':'Bildirim güncellendi.'})
+    
+    return Response({'success':False, 'msg':'Bildirim güncellenirken hata ile karşılaşıldı.'})
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser]) 
+def get_unread_notifications(request,type):
+
+    notifications= PaymentNotification.objects.filter(is_read=False, product_type=type)
+
+    paginator= CustomPagination()
+    results_page = paginator.paginate_queryset(notifications, request)
+
+    serializer= PaymentNotificationSerializer(results_page, many=True)
+
+    return paginator.get_paginated_response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser]) 
+def get_read_notifications(request, type):
+
+    notifications= PaymentNotification.objects.filter(is_read=True, product_type=type)
+
+    paginator= CustomPagination()
+
+    results_page = paginator.paginate_queryset(notifications, request)
+
+    serializer= PaymentNotificationSerializer(results_page, many=True)
+
+    return paginator.get_paginated_response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated]) 
+def deneme(request):
+
+    user_instance = User.objects.get(id=request.user.id)
+
+    now=datetime.now()
+    notification_data={
+        'product_type':'video',
+        'title':'Omurga İlişikili Temporomandibular Eklem (TME) Disfonksiyonlarında Rehabilitasyon Prensibleri',
+        'price':200,
+        'date':now,
+        'user':user_instance
+    }
+
+    data= PaymentNotification.objects.create(**notification_data)
+
+    # notification_serializer = PaymentNotificationSerializer(data=notification_data)
+
+    if data:
+        return Response({'success':True})
+
+    return Response({'success':False})
